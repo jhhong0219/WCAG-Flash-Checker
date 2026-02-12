@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WCAG Flash Risk Checker (ΔL≥0.10, >3/sec)</title>
+  <style>
+    :root{
+      --bg:#0b0f19;
+      --panel:#111827;
+      --panel2:#0f172a;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --accent:#22c55e;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Helvetica, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1000px 700px at 15% 0%, rgba(34,197,94,.15), transparent 55%),
+                  radial-gradient(900px 600px at 85% 10%, rgba(59,130,246,.12), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:28px 18px 60px}
+    header{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:22px;letter-spacing:-.02em;margin:0}
+    .sub{color:var(--muted);margin-top:6px;font-size:13.5px;line-height:1.4}
+    .badge{
+      display:inline-flex;gap:8px;align-items:center;
+      background:rgba(34,197,94,.12);
+      border:1px solid rgba(34,197,94,.25);
+      color:#bbf7d0;
+      padding:6px 10px;border-radius:999px;font-size:12px;white-space:nowrap
+    }
+    .grid{display:grid;grid-template-columns: 1.1fr .9fr;gap:14px;margin-top:14px}
+    @media (max-width: 920px){ .grid{grid-template-columns:1fr} }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+    }
+    .card h2{font-size:14px;margin:0 0 10px;color:#d1d5db;font-weight:600}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .row > *{flex:0 0 auto}
+    .file{
+      flex:1 1 420px;
+      border:1px dashed rgba(255,255,255,.20);
+      border-radius:12px;
+      padding:12px;
+      background:rgba(15,23,42,.65);
+    }
+    input[type="file"]{width:100%}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    @media (max-width:520px){ .controls{grid-template-columns:1fr} }
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type="number"], select{
+      width:100%;padding:10px 10px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(2,6,23,.45);
+      color:var(--text);
+      outline:none;
+    }
+    input[type="number"]:focus, select:focus{border-color:rgba(34,197,94,.45)}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(17,24,39,.75);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      transition:transform .05s ease, border-color .12s ease, background .12s ease;
+      font-weight:600;
+    }
+    button:hover{border-color:rgba(34,197,94,.40)}
+    button:active{transform:translateY(1px)}
+    button.primary{
+      background:rgba(34,197,94,.18);
+      border-color:rgba(34,197,94,.35);
+    }
+    button.danger{
+      background:rgba(239,68,68,.16);
+      border-color:rgba(239,68,68,.28);
+    }
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .kvs{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:12px;
+    }
+    .kv{
+      padding:12px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(15,23,42,.45);
+    }
+    .kv .k{font-size:12px;color:var(--muted)}
+    .kv .v{font-family:var(--mono);margin-top:6px;font-size:13px}
+    .progress{
+      margin-top:12px;
+      height:10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(2,6,23,.45);
+      overflow:hidden;
+    }
+    .bar{height:100%;width:0%;background:linear-gradient(90deg, rgba(34,197,94,.95), rgba(59,130,246,.85))}
+    .log{
+      margin-top:10px;
+      font-family:var(--mono);
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+      white-space:pre-wrap;
+      background:rgba(2,6,23,.35);
+      border:1px solid rgba(255,255,255,.10);
+      padding:10px;border-radius:12px;
+      max-height:200px;overflow:auto;
+    }
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      overflow:hidden;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.12);
+    }
+    th, td{
+      padding:10px 10px;
+      text-align:left;
+      font-size:13px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    th{color:#cbd5e1;background:rgba(15,23,42,.6);font-weight:700}
+    tr:last-child td{border-bottom:none}
+    .pill{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(2,6,23,.35);
+    }
+    .pill.warn{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.12);color:#fde68a}
+    .pill.ok{border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.12);color:#bbf7d0}
+    .note{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:10px}
+    .tiny{font-size:12px;color:var(--muted)}
+    .footer{margin-top:14px;color:var(--muted);font-size:12px}
+    .sep{height:1px;background:rgba(255,255,255,.10);margin:12px 0}
+    canvas{display:none}
+    video{display:none}
+    a{color:#93c5fd}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>WCAG Flash Risk Checker</h1>
+        <div class="sub">
+          브라우저에서 영상 업로드 → 프레임 평균 <b>상대휘도(relative luminance)</b> 계산 →
+          <b>|ΔL| ≥ 0.10</b> &amp; <b>darker&lt;0.80</b> 전이를 카운트 →
+          <b>1초당 3회 초과(=4+)</b> 구간만 위험 후보로 보고합니다.
+        </div>
+      </div>
+      <div class="badge">Local-only • No Upload</div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>1) 영상 선택</h2>
+        <div class="file">
+          <input id="file" type="file" accept="video/*" />
+          <div class="tiny" style="margin-top:8px;">
+            팁: 크고 긴 영상은 분석 시간이 길어질 수 있어요. 다운스케일로 속도를 올릴 수 있습니다.
+          </div>
+        </div>
+
+        <div class="controls">
+          <div>
+            <label>다운스케일 가로폭 (px)</label>
+            <select id="downscale">
+              <option value="0">원본(느림)</option>
+              <option value="320" selected>320 (권장)</option>
+              <option value="480">480</option>
+              <option value="640">640</option>
+            </select>
+          </div>
+          <div>
+            <label>분석 FPS (샘플링)</label>
+            <select id="sampleFps">
+              <option value="0" selected>원본 FPS 사용</option>
+              <option value="15">15 fps로 다운샘플</option>
+              <option value="10">10 fps로 다운샘플</option>
+            </select>
+          </div>
+          <div>
+            <label>임계치 |ΔL| (WCAG 10% = 0.10)</label>
+            <input id="delta" type="number" min="0" max="1" step="0.01" value="0.10" />
+          </div>
+          <div>
+            <label>darker(L) &lt; (WCAG 0.80)</label>
+            <input id="darkerMax" type="number" min="0" max="1" step="0.01" value="0.80" />
+          </div>
+          <div>
+            <label>보고 기준 (1초당 전이 횟수)</label>
+            <select id="reportRule">
+              <option value="4" selected>4회 이상 (3회 초과)</option>
+            </select>
+          </div>
+          <div>
+            <label>최대 분석 길이 (초)</label>
+            <input id="limitSec" type="number" min="0" step="1" value="0" />
+          </div>
+        </div>
+
+        <div class="btns">
+          <button id="start" class="primary" disabled>분석 시작</button>
+          <button id="stop" class="danger" disabled>중지</button>
+          <button id="export" disabled>CSV 내보내기</button>
+        </div>
+
+        <div class="kvs">
+          <div class="kv"><div class="k">파일</div><div class="v" id="kvFile">-</div></div>
+          <div class="kv"><div class="k">FPS / 길이</div><div class="v" id="kvFps">-</div></div>
+          <div class="kv"><div class="k">분석 프레임</div><div class="v" id="kvFrames">-</div></div>
+          <div class="kv"><div class="k">위험 구간</div><div class="v" id="kvRisk">-</div></div>
+        </div>
+
+        <div class="progress"><div class="bar" id="bar"></div></div>
+        <div class="log" id="log">파일을 선택하면 준비됩니다.</div>
+
+        <div class="note">
+          <b>주의:</b> 이 도구는 “프레임 평균 상대휘도” 기반 1차 탐지입니다.
+          화면 일부(UI 요소)만 깜빡이는 경우는 놓칠 수 있어요. 필요하면 화면을 격자(ROI)로 나눠 검사하는 버전으로 확장하세요.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2) 결과</h2>
+        <div id="resultSummary" class="tiny">아직 결과가 없습니다.</div>
+        <div class="sep"></div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:28%;">구간(시작~끝)</th>
+              <th style="width:22%;">초 인덱스</th>
+              <th style="width:22%;">최대 전이/초</th>
+              <th>판정</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="4" class="tiny">분석을 시작하면 위험 후보 구간이 여기 표시됩니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- Hidden elements for decoding -->
+    <video id="vid" playsound="false"></video>
+    <canvas id="c"></canvas>
+  </div>
+
+  <script>
+    // ===== Utilities =====
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const barEl = $("bar");
+    const tbody = $("tbody");
+
+    function log(msg){
+      logEl.textContent = (logEl.textContent ? (logEl.textContent + "\n") : "") + msg;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function tc(t){
+      // HH:MM:SS.mmm
+      const h = Math.floor(t/3600);
+      const m = Math.floor((t%3600)/60);
+      const s = Math.floor(t%60);
+      const ms = Math.round((t - Math.floor(t))*1000);
+      return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(ms).padStart(3,"0")}`;
+    }
+    function srgbToLinear(v){
+      // v in [0..1]
+      return (v <= 0.04045) ? (v/12.92) : Math.pow((v+0.055)/1.055, 2.4);
+    }
+
+    // Compute mean relative luminance from ImageData (RGBA)
+    function meanRelativeLuminance(imgData){
+      const d = imgData.data;
+      let sum = 0;
+      const n = d.length / 4;
+      // loop in chunks for speed
+      for(let i=0; i<d.length; i+=4){
+        const r = srgbToLinear(d[i] / 255);
+        const g = srgbToLinear(d[i+1] / 255);
+        const b = srgbToLinear(d[i+2] / 255);
+        const L = 0.2126*r + 0.7152*g + 0.0722*b;
+        sum += L;
+      }
+      return sum / n;
+    }
+
+    function mergeSeconds(seconds){
+      if(!seconds.length) return [];
+      seconds.sort((a,b)=>a-b);
+      const segs = [];
+      let start = seconds[0], prev = seconds[0];
+      for(let i=1;i<seconds.length;i++){
+        const s = seconds[i];
+        if(s === prev+1){ prev = s; continue; }
+        segs.push([start, prev]);
+        start = prev = s;
+      }
+      segs.push([start, prev]);
+      return segs;
+    }
+
+    function makeCSV(rows){
+      return rows.map(r => r.map(x => {
+        const s = String(x);
+        return (s.includes(",") || s.includes('"') || s.includes("\n")) ? `"${s.replaceAll('"','""')}"` : s;
+      }).join(",")).join("\n");
+    }
+
+    // ===== Main State =====
+    let file = null;
+    let stopFlag = false;
+    let results = {
+      frameRows: [],      // [frame, t, L, dL, absdL, flash]
+      riskSeconds: [],    // {sec, start, end, count}
+      riskSegments: [],   // {startTC, endTC, startSec, endSec, maxCount}
+      meta: {}
+    };
+
+    $("file").addEventListener("change", (e)=>{
+      file = e.target.files?.[0] || null;
+      $("start").disabled = !file;
+      $("export").disabled = true;
+      $("stop").disabled = true;
+      barEl.style.width = "0%";
+      results = { frameRows: [], riskSeconds: [], riskSegments: [], meta: {} };
+
+      if(file){
+        $("kvFile").textContent = file.name;
+        logEl.textContent = "준비됨. 분석 시작을 누르세요.";
+      } else {
+        $("kvFile").textContent = "-";
+        logEl.textContent = "파일을 선택하면 준비됩니다.";
+      }
+    });
+
+    $("stop").addEventListener("click", ()=>{
+      stopFlag = true;
+      log("중지 요청됨…");
+      $("stop").disabled = true;
+    });
+
+    $("export").addEventListener("click", ()=>{
+      // Export two CSVs: risk segments + per-second counts
+      const segRows = [["segment_start","segment_end","start_second","end_second","max_transitions_per_sec"]]
+        .concat(results.riskSegments.map(s=>[s.startTC, s.endTC, s.startSec, s.endSec, s.maxCount]));
+      const secRows = [["second_index","start_time","end_time","transitions_per_sec"]]
+        .concat(results.riskSeconds.map(r=>[r.sec, r.start, r.end, r.count]));
+
+      const blob1 = new Blob([makeCSV(segRows)], {type:"text/csv;charset=utf-8"});
+      const blob2 = new Blob([makeCSV(secRows)], {type:"text/csv;charset=utf-8"});
+
+      const a1 = document.createElement("a");
+      a1.href = URL.createObjectURL(blob1);
+      a1.download = `${results.meta.base}_risk_segments.csv`;
+      a1.click();
+
+      const a2 = document.createElement("a");
+      a2.href = URL.createObjectURL(blob2);
+      a2.download = `${results.meta.base}_risk_seconds.csv`;
+      a2.click();
+    });
+
+    $("start").addEventListener("click", async ()=>{
+      if(!file) return;
+      stopFlag = false;
+      $("start").disabled = true;
+      $("stop").disabled = false;
+      $("export").disabled = true;
+
+      tbody.innerHTML = `<tr><td colspan="4" class="tiny">분석 중…</td></tr>`;
+      $("resultSummary").textContent = "분석 중…";
+
+      const delta = parseFloat($("delta").value || "0.10");
+      const darkerMax = parseFloat($("darkerMax").value || "0.80");
+      const reportMin = parseInt($("reportRule").value, 10); // 4
+      const downscale = parseInt($("downscale").value, 10);
+      const sampleFps = parseInt($("sampleFps").value, 10);
+      const limitSec = parseInt($("limitSec").value, 10) || 0;
+
+      const base = file.name.replace(/\.[^/.]+$/, "");
+      results.meta = { base, delta, darkerMax, reportMin };
+
+      logEl.textContent = "";
+      log(`파일: ${file.name}`);
+      log(`기준: |ΔL| >= ${delta.toFixed(2)}, darker < ${darkerMax.toFixed(2)}, 보고: 1초당 4회 이상(3회 초과)`);
+      log(`다운스케일: ${downscale===0 ? "원본" : downscale+"px"}, 샘플링: ${sampleFps===0 ? "원본 FPS" : sampleFps+"fps"}`);
+      if(limitSec>0) log(`최대 분석 길이: ${limitSec}s`);
+
+      const vid = $("vid");
+      const c = $("c");
+      const ctx = c.getContext("2d", {willReadAndWrite: true, willRead: true});
+
+      // load video
+      const url = URL.createObjectURL(file);
+      vid.src = url;
+      vid.muted = true;
+
+      await new Promise((res, rej)=>{
+        vid.onloadedmetadata = ()=>res();
+        vid.onerror = ()=>rej(new Error("비디오 로드 실패"));
+      });
+
+      const duration = vid.duration;
+      const fpsNative = vid.getVideoPlaybackQuality ? null : null; // not reliable
+      $("kvFps").textContent = `${(vid.videoWidth && vid.videoHeight) ? `${vid.videoWidth}x${vid.videoHeight}` : ""} / ${duration.toFixed(2)}s`;
+
+      // decide analysis fps (sample)
+      // We'll step by time; assume original fps ~<=30, but unknown in browser. We'll use timeslicing.
+      const effectiveFps = (sampleFps && sampleFps > 0) ? sampleFps : 0; // 0 = auto step approx to 1/frame using "seek"
+      const step = (effectiveFps > 0) ? (1 / effectiveFps) : (1 / 24); // fallback 24 if unknown
+      const totalTime = (limitSec>0) ? Math.min(duration, limitSec) : duration;
+
+      // canvas size (downscale width)
+      let w = vid.videoWidth, h = vid.videoHeight;
+      if(downscale > 0 && w > downscale){
+        const scale = downscale / w;
+        w = downscale;
+        h = Math.round(h * scale);
+      }
+      c.width = w; c.height = h;
+
+      // iterate frames by seeking time
+      let prevL = null;
+      let frameIdx = 0;
+      const flashFlagsBySecond = new Map(); // sec -> count
+      const perSecondMax = new Map();
+
+      // helper: seek to t
+      async function seek(t){
+        return new Promise((res)=>{
+          const onSeeked = () => { vid.removeEventListener("seeked", onSeeked); res(); };
+          vid.addEventListener("seeked", onSeeked);
+          vid.currentTime = Math.min(totalTime, Math.max(0, t));
+        });
+      }
+
+      // We will sample at step intervals and treat each sample as a "frame".
+      // This means results depend on sampling FPS; for true frame-accurate analysis, a server-side/ffmpeg approach is needed.
+      log("프레임 샘플링 시작… (브라우저는 프레임 단위 접근이 제한되어 시간 기반 샘플링으로 동작합니다.)");
+
+      let t = 0;
+      const N = Math.max(1, Math.ceil(totalTime / step));
+      $("kvFrames").textContent = `~${N} samples`;
+
+      for(let i=0; i<N; i++){
+        if(stopFlag) break;
+
+        await seek(t);
+        ctx.drawImage(vid, 0, 0, w, h);
+        const img = ctx.getImageData(0, 0, w, h);
+        const L = meanRelativeLuminance(img);
+
+        let dL = 0, absdL = 0, flash = 0;
+        if(prevL !== null){
+          dL = L - prevL;
+          absdL = Math.abs(dL);
+          const darker = Math.min(L, prevL);
+          flash = (absdL >= delta && darker < darkerMax) ? 1 : 0;
+        }
+        results.frameRows.push([frameIdx, t, L, dL, absdL, flash]);
+
+        // per-second count
+        const sec = Math.floor(t);
+        if(flash === 1){
+          flashFlagsBySecond.set(sec, (flashFlagsBySecond.get(sec) || 0) + 1);
+        }
+        // track max
+        const cntNow = flashFlagsBySecond.get(sec) || 0;
+        perSecondMax.set(sec, Math.max(perSecondMax.get(sec) || 0, cntNow));
+
+        prevL = L;
+        frameIdx++;
+
+        const prog = Math.min(1, (t / totalTime));
+        barEl.style.width = `${(prog*100).toFixed(1)}%`;
+
+        if(i % 10 === 0){
+          log(`샘플 ${i}/${N}  t=${t.toFixed(3)}s  L=${L.toFixed(4)}  flash=${flash}`);
+        }
+
+        t += step;
+      }
+
+      URL.revokeObjectURL(url);
+      $("stop").disabled = true;
+
+      // Build risk seconds (count >= 4)
+      const riskSeconds = [];
+      for(const [sec, count] of flashFlagsBySecond.entries()){
+        if(count >= reportMin){
+          riskSeconds.push(sec);
+          results.riskSeconds.push({
+            sec,
+            start: tc(sec),
+            end: tc(sec+1),
+            count
+          });
+        }
+      }
+      riskSeconds.sort((a,b)=>a-b);
+
+      // Segments
+      const segs = mergeSeconds(riskSeconds);
+      for(const [s0, s1] of segs){
+        let maxCount = 0;
+        for(let s=s0; s<=s1; s++){
+          const c = flashFlagsBySecond.get(s) || 0;
+          maxCount = Math.max(maxCount, c);
+        }
+        results.riskSegments.push({
+          startTC: tc(s0),
+          endTC: tc(s1+1),
+          startSec: s0,
+          endSec: s1,
+          maxCount
+        });
+      }
+
+      // Render
+      $("kvFrames").textContent = `${frameIdx} samples`;
+      $("kvRisk").textContent = `${results.riskSegments.length} seg / ${results.riskSeconds.length} sec`;
+      const durText = `${totalTime.toFixed(2)}s`;
+      $("kvFps").textContent = `duration ${durText} (sampling step ${step.toFixed(4)}s)`;
+
+      if(results.riskSegments.length === 0){
+        tbody.innerHTML = `<tr><td colspan="4"><span class="pill ok">OK</span> <span class="tiny">설정 기준에서 위험 후보 구간이 없습니다.</span></td></tr>`;
+        $("resultSummary").textContent = "위험 후보 없음";
+      } else {
+        tbody.innerHTML = results.riskSegments.map(seg => `
+          <tr>
+            <td><span class="pill warn">RISK</span> <span style="font-family:var(--mono)">${seg.startTC} ~ ${seg.endTC}</span></td>
+            <td style="font-family:var(--mono)">${seg.startSec} ~ ${seg.endSec}</td>
+            <td style="font-family:var(--mono)">${seg.maxCount}</td>
+            <td><span class="pill warn">>3/sec</span></td>
+          </tr>
+        `).join("");
+        $("resultSummary").textContent = `위험 후보 세그먼트 ${results.riskSegments.length}개 (초당 3회 초과)`;
+      }
+
+      $("export").disabled = false;
+      $("start").disabled = false;
+
+      log("완료!");
+      if(stopFlag) log("※ 사용자가 중지함");
+    });
+
+    // Disable start until file selected
+    $("start").disabled = true;
+  </script>
+</body>
+</html>
